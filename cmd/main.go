@@ -24,8 +24,8 @@ import (
 // @title           Users and Orders API
 // @version         1.0
 // @description     REST API for managing users and their orders with JWT authentication.
-// @host            localhost:8080
-// @BasePath        /
+// @BasePath        /api
+// @schemes         https
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization

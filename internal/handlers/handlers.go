@@ -82,6 +82,7 @@ func (h *Handlers) Routes(jwtSecret string) http.Handler {
 }
 
 // @Summary      Login
+// @ID           login
 // @Description  Authenticate user and receive a JWT token
 // @Tags         auth
 // @Accept       json
@@ -114,6 +115,7 @@ func (h *Handlers) login(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Create user
+// @ID           createUser
 // @Description  Register a new user
 // @Tags         users
 // @Accept       json
@@ -145,6 +147,7 @@ func (h *Handlers) createUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      List users
+// @ID           listUsers
 // @Description  Get a paginated and filtered list of users
 // @Tags         users
 // @Produce      json
@@ -178,6 +181,7 @@ func (h *Handlers) listUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Get user by ID
+// @ID           getUser
 // @Description  Retrieve a single user
 // @Tags         users
 // @Produce      json
@@ -202,6 +206,7 @@ func (h *Handlers) getUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Update user
+// @ID           updateUser
 // @Description  Update an existing user
 // @Tags         users
 // @Accept       json
@@ -240,6 +245,7 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Delete user
+// @ID           deleteUser
 // @Description  Delete a user by ID
 // @Tags         users
 // @Param        id path int true "User ID"
@@ -264,6 +270,7 @@ func (h *Handlers) deleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Create order
+// @ID           createOrder
 // @Description  Create an order for a user
 // @Tags         orders
 // @Accept       json
@@ -302,6 +309,7 @@ func (h *Handlers) createOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      List orders
+// @ID           listOrders
 // @Description  Get all orders for a user
 // @Tags         orders
 // @Produce      json

@@ -1,9 +1,12 @@
-.PHONY: swagger tidy build run test docker-up docker-down
+.PHONY: swagger swagger-client tidy build run test docker-up docker-down
 
 SWAG_CMD := $(shell go env GOPATH)/bin/swag
 
 swagger: ## Generate OpenAPI docs from code annotations
 	$(SWAG_CMD) init -g cmd/main.go -o docs --parseDependency --parseInternal
+
+swagger-client: swagger ## Generate Kotlin Multiplatform Ktor client from OpenAPI
+	cd app && ./gradlew :site:generateStoreApi
 
 tidy: ## Download and tidy dependencies
 	go mod tidy

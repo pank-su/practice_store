@@ -2,3 +2,11 @@ bin/
 *.exe
 .env.local
 *.docx
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
+app/.gradle/
+app/build/
+app/site/build/
+app/site/.kobweb/server/
+app/site/.kobweb/site/
