@@ -19,12 +19,16 @@ func New(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Migrate(ctx context.Context) error {
-	return r.db.WithContext(ctx).AutoMigrate(&models.User{}, &models.Order{})
+func (r *Repository) Migrate(context.Context) error {
+	// The database schema is initialized by migrations/001_init.sql in the Postgres image.
+	// Keeping runtime schema changes disabled avoids GORM fighting SQL-defined constraints.
+	return nil
 }
 
 func (r *Repository) CreateUser(ctx context.Context, user *models.User) error {
-	return r.db.WithContext(ctx).Create(user).Error
+	return r.db.WithContext(ctx).
+		Raw("SELECT * FROM create_user(?, ?, ?, ?)", user.Name, user.Email, user.Age, user.PasswordHash).
+		Scan(user).Error
 }
 
 func (r *Repository) GetUserByID(ctx context.Context, id uint) (*models.User, error) {

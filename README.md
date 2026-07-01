@@ -6,7 +6,7 @@
 Бэкенд:       Go + net/http + GORM + PostgreSQL
 Фронтенд:     Kotlin + Kobweb + сгенерированный Ktor-клиент
 Документация: OpenAPI / Swagger
-Деплой:       Docker Compose + nginx
+Деплой:       Docker Compose + PgBouncer + nginx
 ```
 
 ## Возможности
@@ -18,7 +18,8 @@
 - OpenAPI/Swagger документация из аннотаций Go-кода.
 - Генерация Kotlin Multiplatform Ktor-клиента из OpenAPI.
 - Kobweb-фронтенд с разделением на `data`, `domain` и `ui` слои.
-- Docker Compose для PostgreSQL, бэкенда и nginx-фронтенда.
+- Docker Compose для PostgreSQL, PgBouncer, бэкенда и nginx-фронтенда.
+- Устойчивое подключение к БД: pool через env, retry на старте и readiness endpoint.
 - Модульные тесты для бэкенда.
 
 ## Архитектура
@@ -68,17 +69,26 @@ go install github.com/swaggo/swag/cmd/swag@latest
 
 ```env
 HTTP_ADDR=:8080
-DB_HOST=localhost
+DB_HOST=pgbouncer
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=users_orders
 DB_SSLMODE=disable
+DB_PREFER_SIMPLE_PROTOCOL=true
+DB_MAX_OPEN_CONNS=10
+DB_MAX_IDLE_CONNS=5
+DB_CONN_MAX_LIFETIME_SECONDS=300
+DB_CONN_MAX_IDLE_TIME_SECONDS=60
+DB_CONNECT_MAX_ATTEMPTS=10
+DB_CONNECT_RETRY_DELAY_SECONDS=2
 JWT_SECRET=change-me-in-production
 JWT_TTL_HOURS=24
 ```
 
 Вместо отдельных `DB_*` переменных можно задать `DATABASE_URL`.
+
+В Docker Compose приложение подключается к PostgreSQL через PgBouncer на `pgbouncer:5432`. Наружу PgBouncer опубликован как `localhost:6432`. `DB_PREFER_SIMPLE_PROTOCOL=true` нужен для совместимости с transaction pooling.
 
 ## Быстрый запуск
 
@@ -98,6 +108,13 @@ make run
 Бэкенд будет доступен на `http://localhost:8080`.
 
 Swagger UI будет доступен на `http://localhost:8080/swagger/index.html`.
+
+Если нужно пересоздать dev-базу и заново применить `migrations/001_init.sql`:
+
+```bash
+docker compose down -v
+docker compose up --build -d db pgbouncer app
+```
 
 ## Фронтенд локально
 
@@ -140,6 +157,7 @@ docker compose up --build -d
 | Бэкенд API | `http://localhost:8080` |
 | Фронтенд nginx | `http://localhost:8082` |
 | PostgreSQL | `localhost:5432` |
+| PgBouncer | `localhost:6432` |
 
 ## Роутинг в проде
 
@@ -152,7 +170,8 @@ docker compose up --build -d
 | `/swagger/index.html` | Swagger UI |
 | `/swagger/doc.json` | OpenAPI JSON |
 | `/openapi.yaml` | OpenAPI YAML |
-| `/health` | Healthcheck |
+| `/health` | Проверка здоровья процесса |
+| `/ready` | Проверка готовности сервиса и доступа к БД |
 
 Сам Go-сервис не знает про `/api`: этот префикс добавляется reverse proxy на уровне инфраструктуры.
 
@@ -171,7 +190,20 @@ docker compose up --build -d
 | `POST` | `/users/{user_id}/orders` | Создание заказа | да |
 | `GET` | `/users/{user_id}/orders` | Заказы пользователя | да |
 | `GET` | `/health` | Проверка здоровья | нет |
+| `GET` | `/ready` | Проверка готовности и доступа к БД | нет |
 | `GET` | `/swagger/index.html` | Swagger UI | нет |
+
+## PostgreSQL
+
+Начальная схема лежит в `migrations/001_init.sql` и применяется PostgreSQL container при создании нового volume.
+
+В схеме есть:
+
+- `CHECK` constraints для непустых строк и положительных чисел.
+- Индекс `idx_orders_user_id` для выборки заказов пользователя.
+- SQL-функция `create_user(name, email, age, password_hash)`, через которую бэкенд создаёт пользователей.
+
+Так как проект пока учебный и находится в разработке, при изменении init schema можно пересоздавать БД через `docker compose down -v`.
 
 ## OpenAPI и Kotlin-клиент
 

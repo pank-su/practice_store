@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"practice_1/internal/middleware"
 	"practice_1/internal/models"
@@ -18,10 +20,19 @@ type Handlers struct {
 	users  *services.UserService
 	orders *services.OrderService
 	auth   *services.AuthService
+	ready  readinessChecker
 }
 
-func New(users *services.UserService, orders *services.OrderService, auth *services.AuthService) *Handlers {
-	return &Handlers{users: users, orders: orders, auth: auth}
+type readinessChecker interface {
+	PingContext(ctx context.Context) error
+}
+
+func New(users *services.UserService, orders *services.OrderService, auth *services.AuthService, ready ...readinessChecker) *Handlers {
+	h := &Handlers{users: users, orders: orders, auth: auth}
+	if len(ready) > 0 {
+		h.ready = ready[0]
+	}
+	return h
 }
 
 type createUserRequest struct {
@@ -74,6 +85,7 @@ func (h *Handlers) Routes(jwtSecret string) http.Handler {
 	mux.Handle("GET /users/{user_id}/orders", middleware.JWTAuth(jwtSecret)(http.HandlerFunc(h.listOrders)))
 
 	mux.HandleFunc("GET /health", h.health)
+	mux.HandleFunc("GET /ready", h.readyCheck)
 	mux.HandleFunc("GET /openapi.yaml", h.openapi)
 	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
 	mux.HandleFunc("GET /swagger", httpSwagger.WrapHandler)
@@ -338,6 +350,31 @@ func (h *Handlers) listOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) health(w http.ResponseWriter, r *http.Request) {
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// @Summary      Readiness check
+// @ID           readiness
+// @Description  Check whether the service can reach PostgreSQL
+// @Tags         system
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      503 {object} utils.ErrorResponse
+// @Router       /ready [get]
+func (h *Handlers) readyCheck(w http.ResponseWriter, r *http.Request) {
+	if h.ready == nil {
+		utils.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := h.ready.PingContext(ctx); err != nil {
+		log.Printf("readiness check failed: %v", err)
+		utils.WriteError(w, http.StatusServiceUnavailable, "database is not ready")
+		return
+	}
+
 	utils.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
